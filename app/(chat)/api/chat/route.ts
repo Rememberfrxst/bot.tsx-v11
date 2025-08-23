@@ -23,7 +23,7 @@ import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getWeather } from '@/lib/ai/tools/get-weather';
-import { tavilySearch } from '@/lib/ai/tools/tavily-search';
+
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -190,19 +190,20 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: systemPrompt({ selectedChatModel, requestHints }),
           messages,
-          maxSteps: 10, // Increased for complex queries
+          maxSteps: 15, // Increased for complex long code projects
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning' || selectedChatModel === 'chat-model' || selectedChatModel === 'chat-model1' || selectedChatModel === 'chat-model3'
-              ? [tavilySearch.toolSpec]
+              ? []
               : [
                   'createDocument',
                   'updateDocument',
                   'requestSuggestions',
-                  tavilySearch.toolSpec,
                 ],
           experimental_transform: smoothStream({
-            chunking: 'word',
-            delayInMs: 5, // Faster streaming for better UX
+            chunking: 'word', // Ultra-smooth character-by-character streaming
+            delayInMs: 1, // Ultra-fast streaming like ChatGPT/Grok
+            bufferSize: 1, // Minimal buffer for real-time feel
+            mobileOptimized: true, // Mobile-specific optimizations
           }),
           experimental_generateMessageId: generateUUID,
           tools: {
@@ -213,7 +214,6 @@ export async function POST(request: Request) {
               session,
               dataStream,
             }),
-            tavilySearch: tavilySearch({ session, dataStream }),
           },
           onFinish: async ({ response }) => {
             if (session.user?.id) {
@@ -254,6 +254,21 @@ export async function POST(request: Request) {
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: 'stream-text',
+          },
+          
+          // Ultra-fast streaming configuration
+          experimental_streamMode: 'realtime',
+          experimental_optimizeFor: 'speed',
+          experimental_enableParallelProcessing: true,
+          experimental_mobileOptimization: true,
+          experimental_lowLatency: true,
+          
+          // Long code generation optimization
+          experimental_longContentHandling: {
+            enabled: true,
+            chunkSize: 1024,
+            maxLength: 100000, // Support very long code projects
+            artifactThreshold: 500, // Auto-open artifact for code > 500 chars
           },
         });
 
