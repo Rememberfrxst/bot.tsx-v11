@@ -3,7 +3,7 @@
 
 import type { Attachment, UIMessage } from "ai"
 import { useChat } from "@ai-sdk/react"
-import { useEffect, useState, useRef } from "react" // Added useRef for scrolling
+import { useEffect, useState, useRef, useCallback } from "react" // Added useRef for scrolling
 import useSWR, { useSWRConfig } from "swr"
 import { ChatHeader } from "@/components/chat-header"
 import type { Vote } from "@/lib/db/schema"
@@ -117,18 +117,14 @@ export function Chat({
   const isArtifactVisible = useArtifactSelector((state) => state.isVisible)
 
 
-  const handleModelChange = (newModelId: string) => {
+  const handleModelChange = useCallback((newModelId: string) => {
     setCurrentChatModel(newModelId)
-    toast({
-      type: "success",
-      description: `Switched to ${newModelId}`,
-    })
-  }
+  }, [])
 
 
   return (
     <>
-      <div className="flex flex-col min-w-0 h-dvh overflow-hidden bg-background">
+      <div className="flex flex-col min-w-0 h-dvh overflow-hidden bg-background dotted-bg">
         <ChatHeader
           chatId={id}
           selectedModelId={currentChatModel}
@@ -150,7 +146,7 @@ export function Chat({
             isReadonly={isReadonly}
             isArtifactVisible={isArtifactVisible}
           />
-          
+
         )}
         <div ref={messagesEndRef} /> {/* Scroll anchor for streaming */}
 
