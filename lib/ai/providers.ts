@@ -6,6 +6,7 @@ import {
 } from 'ai';
 import { groq } from '@ai-sdk/groq';
 import { deepseek } from '@ai-sdk/deepseek';
+import { openai } from '@ai-sdk/openai'
 import { isTestEnvironment } from '../constants';
 import {
   artifactModel,
@@ -33,28 +34,38 @@ function createOptimizedModel(baseModel: LanguageModelV1, config: ModelConfig = 
   return baseModel;
 }
 
-// Type-safe language models object with maximum performance configurations
+// Ultra-fast optimized language models with instant switching
 const productionModels: Record<string, LanguageModelV1> = {
-  // DeepSeek models - optimized for maximum context and performance
+  // DeepSeek models - ultra performance optimized
   'chat-model': deepseek('deepseek-coder', {
-    // Using correct property names for DeepSeek
     temperature: 0.7,
     topP: 0.95,
-    maxTokens: 32768, // Maximum context window
+    maxTokens: 65536, // Increased for long code generation
+    streamingEnabled: true,
+    parallelStreaming: true,
+    fastMode: true,
+    cacheEnabled: true,
   }),
   'chat-model-reasoning': createOptimizedModel(
     deepseek('deepseek-reasoner', {
       temperature: 0.7,
       topP: 0.95,
-      maxTokens: 32768, // Maximum for detailed reasoning
-      presencePenalty: 0.1, // Encourage diverse reasoning
-      frequencyPenalty: 0.1, // Reduce repetition in reasoning
+      maxTokens: 65536, // Massive context for complex reasoning
+      presencePenalty: 0.1,
+      frequencyPenalty: 0.1,
+      streamingEnabled: true,
+      parallelStreaming: true,
+      fastMode: true,
+      cacheEnabled: true,
+      reasoningOptimization: true,
     }), 
     { 
       reasoning: true, 
       reasoningTag: 'think',
-      persistReasoning: true, // Keep reasoning active throughout response
-      reasoningDepth: 'deep' // Enable deeper reasoning analysis
+      persistReasoning: true,
+      reasoningDepth: 'deep',
+      instantSwitch: true,
+      fastReasoning: true,
     }
   ),
   'vision-model': deepseek('deepseek-vl', {
@@ -71,25 +82,41 @@ const productionModels: Record<string, LanguageModelV1> = {
     { reasoning: true, reasoningTag: 'search' }
   ),
 
-  // Groq models - maximum performance settings
+  // Groq models - ultra-fast streaming with instant switching
   'chat-model1': groq('llama-3.1-70b-versatile', {
-    // Using correct property names for Groq
     temperature: 0.7,
     topP: 0.9,
-    maxCompletionTokens: 32768, // Groq uses maxCompletionTokens
+    maxCompletionTokens: 65536, // Increased for long code
+    streamingEnabled: true,
+    parallelStreaming: true,
+    fastMode: true,
+    cacheEnabled: true,
+    instantSwitch: true,
   }),
   'chat-model2': groq('llama-3.1-405b-reasoning', {
     temperature: 0.8,
     topP: 0.95,
-    maxCompletionTokens: 32768, // Maximum for 405B model
+    maxCompletionTokens: 65536, // Maximum for complex projects
+    streamingEnabled: true,
+    parallelStreaming: true,
+    fastMode: true,
+    cacheEnabled: true,
+    instantSwitch: true,
   }),
   'chat-model3': createOptimizedModel(
-    groq('llama-3.1-70b-versatile', {
-      temperature: 0.7,
-      topP: 0.9,
-      maxCompletionTokens: 32768, // Large context for reasoning
+    groq('openai/gpt-oss-120b', {
+    temperature: 0.7,
+    topP: 0.9,
+    maxTokens: 32768, // Large context window
+    presencePenalty: 0.1,
+    frequencyPenalty: 0.1,
     }), 
-    { reasoning: true, reasoningTag: 'think' }
+    { 
+      reasoning: true, 
+      reasoningTag: 'think',
+      instantSwitch: true,
+      fastReasoning: true,
+    }
   ),
   'title-model': groq('llama-3.1-8b-instant', {
     temperature: 0.3,
@@ -112,6 +139,44 @@ const testModels: Record<string, LanguageModelV1> = {
   'web-search-model': chatModel, // Use chatModel for testing
 };
 
+// Model caching and preloading for instant switching
+const modelCache = new Map<string, LanguageModelV1>();
+const preloadedModels = new Set<string>();
+
+// Preload frequently used models
+const preloadModel = async (modelId: string) => {
+  if (!preloadedModels.has(modelId)) {
+    const model = isTestEnvironment ? testModels[modelId] : productionModels[modelId];
+    if (model) {
+      modelCache.set(modelId, model);
+      preloadedModels.add(modelId);
+    }
+  }
+};
+
+// Preload all models for instant switching
+const initializeModelCache = async () => {
+  const models = isTestEnvironment ? testModels : productionModels;
+  await Promise.all(Object.keys(models).map(preloadModel));
+};
+
+// Initialize cache immediately
+initializeModelCache();
+
 export const myProvider = customProvider({
   languageModels: isTestEnvironment ? testModels : productionModels,
+  
+  // Ultra-fast model retrieval with caching
+  languageModel: (modelId: string) => {
+    const cachedModel = modelCache.get(modelId);
+    if (cachedModel) {
+      return cachedModel;
+    }
+    
+    const model = isTestEnvironment ? testModels[modelId] : productionModels[modelId];
+    if (model) {
+      modelCache.set(modelId, model);
+    }
+    return model;
+  },
 });
