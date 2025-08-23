@@ -26,11 +26,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDownIcon } from "lucide-react";
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
 import type { VisibilityType } from "./visibility-selector";
-import { WebSearchButton } from './web-search-button';
-import { useWebSearchState } from '@/hooks/use-web-search-state';
-import { WebSearchDisplay } from './web-search-display';
+import { WebSearchButton } from "./web-search-button";
 import type { Session } from "next-auth";
 import { cn } from "@/lib/utils";
+import { ImprovePromptButton } from "./improve-prompt-button"; // Import the new button
 
 // Utility function for UUID
 const generateUUID = () => crypto.randomUUID();
@@ -184,77 +183,54 @@ function PureMultimodalInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
-  const webSearchState = useWebSearchState();
-
   // 🔥 OLD PATTERN: Simple submitForm with URL history management
-  const submitForm = useCallback(
-    async (event?: React.FormEvent<HTMLFormElement>) => {
-      event?.preventDefault();
+  const submitForm = useCallback(() => {
+    // 🔥 KEY FIX: URL history management (same as old code)
+    window.history.replaceState({}, "", `/chat/${chatId}`);
 
-      if (!input.trim() && attachments.length === 0) return;
+    handleSubmit(undefined, {
+      experimental_attachments: attachments,
+    });
+    setAttachments([]);
+    setLocalStorageInput("");
+    resetHeight();
+    setCurrentPlaceholderIndex(0);
+    setDisplayedPlaceholder("");
+    if (width && width > 768) {
+      textareaRef.current?.focus();
+    }
+  }, [attachments, handleSubmit, setAttachments, setLocalStorageInput, width, chatId]);
 
-      // Handle web search mode
-      if (webSearchState.isActive && input.trim()) {
-        webSearchState.startSearch(input.trim());
+  // 🔥 NEW: Web search with same pattern
+  const handleWebSearch = useCallback(() => {
+    const trimmedInput = input.trim();
+    if (!trimmedInput) return;
 
-        try {
-          const response = await fetch('/api/web-search', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              query: input.trim(),
-            }),
-          });
+    // URL history management
+    window.history.replaceState({}, "", `/chat/${chatId}`);
 
-          const data = await response.json();
+    append({
+      id: generateUUID(),
+      role: 'user',
+      parts: [{ text: input }],
+      experimental_attachments: attachments,
+      experimental_toolCall: 'searchWeb',
+    });
+    setAttachments([]);
+    setLocalStorageInput("");
+    resetHeight();
+    setCurrentPlaceholderIndex(0);
+    setDisplayedPlaceholder("");
+    if (width && width > 768) {
+      textareaRef.current?.focus();
+    }
+  }, [input, attachments, append, setAttachments, setLocalStorageInput, width, chatId]);
 
-          if (response.ok && data.results) {
-            webSearchState.setResults(data.results, data.answer);
-
-            // Create a comprehensive search result message
-            const searchSummary = `Here are the web search results for "${input.trim()}":\n\n${data.answer ? `**Quick Answer:** ${data.answer}\n\n` : ''}**Sources:**\n${data.results.map((result: any, index: number) =>
-              `${index + 1}. **${result.title}**\n   ${result.content}\n   Source: [${new URL(result.url).hostname}](${result.url})\n`
-            ).join('\n')}`;
-
-            // Add the search results as a message
-            const searchMessage = {
-              id: generateUUID(),
-              role: 'assistant' as const,
-              content: searchSummary,
-            };
-
-            setMessages(prev => [...prev, {
-              id: generateUUID(),
-              role: 'user',
-              content: `Search: ${input.trim()}`,
-            }, searchMessage]);
-          } else {
-            webSearchState.setError(data.error || 'Search failed');
-          }
-        } catch (error) {
-          webSearchState.setError('Network error occurred');
-        }
-
-        setInput('');
-        return;
-      }
-
-      handleSubmit(event, {
-        experimental_attachments: attachments,
-      });
-
-      setAttachments([]);
-      setInput('');
-
-      if (width && width > 768) {
-        textareaRef.current?.focus();
-      }
-    },
-    [input, attachments, handleSubmit, setAttachments, setInput, width, webSearchState, setMessages],
-  );
-
+  // 🔥 NEW: Improve Prompt feature
+  const handleImprovedPrompt = useCallback((improvedText: string) => {
+    setInput(improvedText);
+    adjustHeight(); // Adjust height for the new content
+  }, [setInput]);
 
   const uploadFile = async (file: File) => {
     const formData = new FormData();
@@ -360,8 +336,10 @@ function PureMultimodalInput({
                 setMessages={setMessages}
                 session={session}
                 selectedModelId={selectedModelId}
-                onModelChange={onModelChange} // 🔥 Simple pass-through
-                onWebSearch={onWebSearch}
+                onModelChange={onModelChange}
+                onWebSearch={onWebSearch} // Added onWebSearch prop
+                input={input}
+                onImprovedPrompt={handleImprovedPrompt}
               />
             </motion.div>
           </div>
@@ -443,8 +421,10 @@ function PureMultimodalInput({
             setMessages={setMessages}
             session={session}
             selectedModelId={selectedModelId}
-            onModelChange={onModelChange} // 🔥 Simple pass-through
+            onModelChange={onModelChange}
             onWebSearch={onWebSearch}
+            input={input}
+            onImprovedPrompt={handleImprovedPrompt}
           />
         </motion.div>
       )}
@@ -471,7 +451,9 @@ function CenteredInputForm({
   session,
   selectedModelId,
   onModelChange,
-  onWebSearch,
+  onWebSearch, // Accepted onWebSearch prop
+  input: improvedPromptInput, // Renamed to avoid conflict
+  onImprovedPrompt, // Accept the new prop
 }: any) {
   const handleInputFocus = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -571,17 +553,23 @@ function CenteredInputForm({
                onModelChange={onModelChange!}
                onThinkModeToggle={(isThinking) => {
                  // Store thinking mode state without affecting UI model selector
-                 if (isThinking) {
-                   sessionStorage.setItem('thinkingMode', 'true');
-                 } else {
-                   sessionStorage.removeItem('thinkingMode');
+                 if (typeof window !== 'undefined') {
+                   if (isThinking) {
+                     sessionStorage.setItem('thinkingMode', 'true');
+                   } else {
+                     sessionStorage.removeItem('thinkingMode');
+                   }
                  }
                }}
              />
               <WebSearchButton
                 status={status}
                 onWebSearch={onWebSearch}
-                isActive={webSearchState.isActive}
+              />
+              <ImprovePromptButton
+                input={input}
+                onImprovedPrompt={onImprovedPrompt}
+                status={status}
               />
           </div>
           <div className="flex items-center gap-1">
@@ -617,6 +605,8 @@ function BottomInputForm({
   selectedModelId,
   onModelChange,
   onWebSearch,
+  input: improvedPromptInput, // Renamed to avoid conflict
+  onImprovedPrompt, // Accept the new prop
 }: any) {
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -629,8 +619,6 @@ function BottomInputForm({
     }
   }, [status, input, submitForm]);
 
-  const webSearchState = useWebSearchState();
-
   return (
     <div
       className={cn(
@@ -638,14 +626,6 @@ function BottomInputForm({
         className
       )}
     >
-      <WebSearchDisplay
-        isSearching={webSearchState.isSearching}
-        results={webSearchState.results}
-        answer={webSearchState.answer}
-        query={webSearchState.query}
-        error={webSearchState.error}
-      />
-
       {(attachments?.length > 0 || uploadQueue.length > 0) && (
         <div className="p-2 flex flex-row gap-2 overflow-x-auto items-end border-b-[2.5px] border-[rgba(6, 182, 212, 0.2)] dark:border-[rgba(0, 255, 255, 0.2)]">
           {attachments?.map((attachment) => (
@@ -674,7 +654,7 @@ function BottomInputForm({
             )}
             rows={1}
             autoFocus
-            placeholder={webSearchState.isActive ? "Enter your search query..." : "Ask Anything"}
+            placeholder={!input ? "Ask Anything" : ""}
             onKeyDown={handleKeyDown}
             style={{ paddingLeft: '10px', backgroundColor: 'transparent !important' }}
           />
@@ -689,17 +669,23 @@ function BottomInputForm({
                selectedModelId={selectedModelId}
                onModelChange={onModelChange!}
                onThinkModeToggle={(isThinking) => {
-                 if (isThinking) {
-                   sessionStorage.setItem('thinkingMode', 'true');
-                 } else {
-                   sessionStorage.removeItem('thinkingMode');
+                 if (typeof window !== 'undefined') {
+                   if (isThinking) {
+                     sessionStorage.setItem('thinkingMode', 'true');
+                   } else {
+                     sessionStorage.removeItem('thinkingMode');
+                   }
                  }
                }}
              />
               <WebSearchButton
                 status={status}
                 onWebSearch={onWebSearch}
-                isActive={webSearchState.isActive}
+              />
+              <ImprovePromptButton
+                input={input}
+                onImprovedPrompt={onImprovedPrompt}
+                status={status}
               />
           </div>
           <div className="flex items-center px-0.5 gap-1">
