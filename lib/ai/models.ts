@@ -51,11 +51,19 @@ export const chatModels: Array<ChatModel> = [
     isAvailable: true,
   },
   {
-    id: "chat-model3",
+    id: "",
     name: "Qwen 3 32B",
     description: "Large-scale model by Alibaba (Qwen)",
     icon: "/images/qwen-icon.png",
     hasReasoningTag: true,
+    isAvailable: true,
+  },
+  {
+    id: "chat-model3",
+    name: "GPT-OSS-120B",
+    description: "OpenAI's large open-source model",
+    icon: "/images/openai-icon.png",
+    hasNewTag: true,
     isAvailable: true,
   },
 ];
