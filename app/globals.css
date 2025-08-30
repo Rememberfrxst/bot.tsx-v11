@@ -21,6 +21,20 @@
     .text-balance {
         text-wrap: balance;
     }
+    
+    .dotted-bg {
+        /* Light mode dotted background */
+        background-color: #f8f9fa;
+        background-image: radial-gradient(rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+    
+    .dark .dotted-bg {
+        /* Dark mode dotted background */
+        background-color: #0f0f0f;
+        background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
 }
 
 @layer base {
@@ -35,7 +49,7 @@
         --primary-foreground: 0 0% 98%;
         --secondary: 240 4.8% 95.9%;
         --secondary-foreground: 240 5.9% 10%;
-        --muted: 240 4.8% 95.9%;
+        --muted: 240 14.29% 95.88%;
         --muted-foreground: 240 3.8% 46.1%;
         --accent: 240 4.8% 95.9%;
         --accent-foreground: 240 5.9% 10%;
@@ -63,7 +77,7 @@
     }
     .dark {
     --background: 0 0% 12.94%;
-    --muted: 0 2.13% 18.43%;
+    --muted: 0 0% 18.82%;
     --foreground: 0 0% 98%;
     --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
@@ -108,6 +122,17 @@
 
     body {
         @apply bg-background text-foreground;
+        /* Light mode dotted background */
+        background-color: #f8f9fa;
+        background-image: radial-gradient(rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+
+    /* Dark mode dotted background */
+    .dark body {
+        background-color: #0f0f0f;
+        background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+        background-size: 20px 20px;
     }
 
     @font-face {
@@ -117,7 +142,7 @@
         font-weight: normal;
         font-style: normal;
       }
-      
+
       @font-face {
         font-family: 'Poppins';
         src: url('/fonts/Poppins-Bold.woff2') format('woff2'),
@@ -191,21 +216,20 @@
     background: #282c34 !important;
     color: #abb2bf !important;
   }
-  
+
   .cm-theme .cm-keyword {
     color: #c678dd !important;
   }
-  
+
   .cm-theme .cm-string {
     color: #98c379 !important;
   }
-  
+
   .cm-theme .cm-comment {
     color: #5c6370 !important;
   }
-  
+
   .cm-theme .cm-function {
     color: #61afef !important;
   }
 
-  
