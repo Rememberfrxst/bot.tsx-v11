@@ -91,7 +91,7 @@ const PurePreviewMessage = ({
                 return (
                   <MessageReasoning
                     key={key}
-                    isLoading={isLoading}
+                    isLoading={isLoading && index === (message.parts?.length || 1) - 1}
                     reasoning={part.reasoning}
                   />
                 );
