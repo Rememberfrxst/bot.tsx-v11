@@ -1,9 +1,11 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { ChevronDownIcon, DeepThing } from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Markdown } from './markdown';
+import { useReasoningState } from '@/hooks/use-reasoning-state';
 
 interface MessageReasoningProps {
   isLoading: boolean;
@@ -11,20 +13,15 @@ interface MessageReasoningProps {
 }
 
 export function MessageReasoning({ isLoading, reasoning }: MessageReasoningProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const {
+    isExpanded,
+    isThinking,
+    thinkingDuration,
+    showReasoned,
+    toggleExpanded
+  } = useReasoningState(reasoning, isLoading);
 
-  useEffect(() => {
-    // Keep expanded during loading and for longer after completion
-    if (isLoading) {
-      setIsExpanded(true);
-    } else if (reasoning) {
-      // Auto-collapse after 5 seconds instead of 2
-      const timeout = setTimeout(() => setIsExpanded(false), 5000);
-      return () => clearTimeout(timeout);
-    }
-  }, [isLoading, reasoning]);
-
-  if (!reasoning) return null;
+  if (!reasoning && !isThinking) return null;
 
   const variants = {
     collapsed: { height: 0, opacity: 0, marginTop: 0, marginBottom: 0 },
@@ -32,7 +29,7 @@ export function MessageReasoning({ isLoading, reasoning }: MessageReasoningProps
   };
 
   return (
-    <div className="flex flex-col rounded-lg bg-muted shadow-sm p-2">
+    <div className="flex flex-col rounded-lg p-2">
       <style jsx>{`
         .shine-text-dark {
           background: linear-gradient(
@@ -124,41 +121,38 @@ export function MessageReasoning({ isLoading, reasoning }: MessageReasoningProps
         }
       `}</style>
 
-      {isLoading ? (
+      {isThinking ? (
         <div className="flex flex-row gap-2 w-fit rounded-xl p-1.5 items-center">
           <DeepThing />
-          <div className="shine-text-background">Thinking</div>
-          <div className="dots-loader">
-            <span></span>
-            <span></span>
-            <span></span>
+          <div className="shine-text-dark">Thinkink... {thinkingDuration} {thinkingDuration !== 1 ? 's' : ''}</div>
+          <button
+            data-testid="message-reasoning-toggle"
+            type="button"
+            className="cursor-pointer"
+            onClick={toggleExpanded}
+          >
+            <div className={`chevron ${isExpanded ? 'expanded' : ''}`}>
+              <ChevronDownIcon />
+            </div>
+          </button>
+        </div>
+      ) : reasoning ? (
+        <div className="flex flex-row gap-2 items-center">
+          <div className="font-medium text-sm text-primary">
+            Thought for {thinkingDuration} second{thinkingDuration !== 1 ? 's' : ''}
           </div>
           <button
             data-testid="message-reasoning-toggle"
             type="button"
             className="cursor-pointer"
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={toggleExpanded}
           >
             <div className={`chevron ${isExpanded ? 'expanded' : ''}`}>
-            
+              <ChevronDownIcon />
             </div>
           </button>
         </div>
-      ) : (
-        <div className="flex flex-row gap-2 items-center">
-          <div className="font-medium">Reasoned for a few seconds</div>
-          <button
-            data-testid="message-reasoning-toggle"
-            type="button"
-            className="cursor-pointer"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
-            <div className={`chevron ${isExpanded ? 'expanded' : ''}`} >
-            <ChevronDownIcon  />
-            </div>
-          </button>
-        </div>
-      )}
+      ) : null}
 
       <AnimatePresence initial={false}>
         {isExpanded && (
@@ -171,9 +165,9 @@ export function MessageReasoning({ isLoading, reasoning }: MessageReasoningProps
             variants={variants}
             transition={{ duration: 0.2, ease: "easeInOut" }}
             style={{ overflow: "hidden" }}
-            className="pl-4 text-zinc-600 dark:text-zinc-400 flex flex-col gap-4"
+            className="border-l-2 border-muted-foreground/20 pl-4 mt-3 text-zinc-600 dark:text-zinc-400"
           >
-            <Markdown className="space-y-6">{reasoning}</Markdown>
+            <Markdown className="space-y-4">{reasoning}</Markdown>
           </motion.div>
         )}
       </AnimatePresence>
