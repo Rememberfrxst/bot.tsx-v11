@@ -2,21 +2,27 @@ import React, { memo, useCallback } from 'react';
 import { Button } from './ui/button';
 
 interface WebSearchButtonProps {
-  onClick: () => void;
+  onClick?: () => void;
+  onWebSearch?: () => void;
   isGenerating?: boolean;
   status: string;
 }
 
-function PureWebSearchButton({ onClick, isGenerating, status }: WebSearchButtonProps) {
+function PureWebSearchButton({ onClick, onWebSearch, isGenerating, status }: WebSearchButtonProps) {
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       if (!isGenerating && status === 'ready') {
-        onClick();
+        // Use onWebSearch if provided, otherwise fall back to onClick
+        if (onWebSearch) {
+          onWebSearch();
+        } else if (onClick) {
+          onClick();
+        }
       }
     },
-    [onClick, isGenerating, status],
+    [onClick, onWebSearch, isGenerating, status],
   );
 
   return (
