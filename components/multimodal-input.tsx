@@ -75,7 +75,7 @@ function PureMultimodalInput({
   session,
   selectedModelId,
   onModelChange,
-  onWebSearch,
+  onWebSearch: handleWebSearch,
 }: {
   chatId: string;
   input: UseChatHelpers["input"];
@@ -93,7 +93,7 @@ function PureMultimodalInput({
   session: Session | null;
   selectedModelId: string;
   onModelChange?: (modelId: string) => void;
-  onWebSearch?: () => void;
+  onWebSearch?: (query: string) => Promise<any>;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -201,30 +201,6 @@ function PureMultimodalInput({
     }
   }, [attachments, handleSubmit, setAttachments, setLocalStorageInput, width, chatId]);
 
-  // 🔥 NEW: Web search with same pattern
-  const handleWebSearch = useCallback(() => {
-    const trimmedInput = input.trim();
-    if (!trimmedInput) return;
-
-    // URL history management
-    window.history.replaceState({}, "", `/chat/${chatId}`);
-
-    append({
-      id: generateUUID(),
-      role: 'user',
-      parts: [{ text: input }],
-      experimental_attachments: attachments,
-      experimental_toolCall: 'searchWeb',
-    });
-    setAttachments([]);
-    setLocalStorageInput("");
-    resetHeight();
-    setCurrentPlaceholderIndex(0);
-    setDisplayedPlaceholder("");
-    if (width && width > 768) {
-      textareaRef.current?.focus();
-    }
-  }, [input, attachments, append, setAttachments, setLocalStorageInput, width, chatId]);
 
   // 🔥 NEW: Improve Prompt feature
   const handleImprovedPrompt = useCallback((improvedText: string) => {
@@ -337,8 +313,7 @@ function PureMultimodalInput({
                 session={session}
                 selectedModelId={selectedModelId}
                 onModelChange={onModelChange}
-                onWebSearch={onWebSearch} // Added onWebSearch prop
-                input={input}
+                onWebSearch={handleWebSearch}
                 onImprovedPrompt={handleImprovedPrompt}
               />
             </motion.div>
@@ -422,8 +397,7 @@ function PureMultimodalInput({
             session={session}
             selectedModelId={selectedModelId}
             onModelChange={onModelChange}
-            onWebSearch={onWebSearch}
-            input={input}
+            onWebSearch={handleWebSearch}
             onImprovedPrompt={handleImprovedPrompt}
           />
         </motion.div>
@@ -451,7 +425,7 @@ function CenteredInputForm({
   session,
   selectedModelId,
   onModelChange,
-  onWebSearch, // Accepted onWebSearch prop
+  onWebSearch: handleWebSearch, // Accepted onWebSearch prop
   input: improvedPromptInput, // Renamed to avoid conflict
   onImprovedPrompt, // Accept the new prop
 }: any) {
@@ -564,7 +538,8 @@ function CenteredInputForm({
              />
               <WebSearchButton
                 status={status}
-                onWebSearch={onWebSearch}
+                onWebSearch={handleWebSearch}
+                isGenerating={status === 'submitted' || status === 'streaming'}
               />
               <ImprovePromptButton
                 input={input}
@@ -604,7 +579,7 @@ function BottomInputForm({
   session,
   selectedModelId,
   onModelChange,
-  onWebSearch,
+  onWebSearch: handleWebSearch,
   input: improvedPromptInput, // Renamed to avoid conflict
   onImprovedPrompt, // Accept the new prop
 }: any) {
